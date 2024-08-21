@@ -1,0 +1,25 @@
+<project>
+  <modelVersion>4.0.0</modelVersion>
+ 
+  <groupId>com.qrypt</groupId>
+  <artifactId>random-provider-example</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>my-module</module>
+  </modules>
+  
+
+
+
+  <dependencies>
+  
+
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.11.0</version>
+    </dependency>
+
+  </dependencies>
+</project>
