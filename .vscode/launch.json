@@ -6,9 +6,10 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Launch Current File",
+            "name": "Main",
             "request": "launch",
-            "mainClass": "${file}"
+            "mainClass": "com.qrypt.Main",
+            "projectName": "random-provider"
         },
         {
             "type": "java",

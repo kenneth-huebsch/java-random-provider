@@ -1,2 +1,3 @@
 /.github
 random-provider/target/
+.DS_Store
