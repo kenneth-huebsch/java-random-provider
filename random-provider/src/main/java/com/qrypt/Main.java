@@ -7,7 +7,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 
 public class Main {
-     public static void main(String[] args) {
+     
+    public static void main(String[] args) {
 
         QRNGRandomProvider provider = new QRNGRandomProvider();
         Security.addProvider(provider);

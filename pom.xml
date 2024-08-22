@@ -5,21 +5,18 @@
   <artifactId>random-provider-example</artifactId>
   <version>1</version>
   <packaging>pom</packaging>
+  
   <modules>
-    <module>my-module</module>
+    <module>random-provider</module>
   </modules>
   
 
-
-
   <dependencies>
-  
-
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
       <version>2.11.0</version>
     </dependency>
-
   </dependencies>
+
 </project>

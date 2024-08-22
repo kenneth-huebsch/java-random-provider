@@ -10,7 +10,7 @@
     </parent>
 
     <groupId>com.qrypt</groupId>
-    <artifactId>my-module</artifactId>
+    <artifactId>random-provider</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
