@@ -38,36 +38,43 @@ public class QRNGSecureRandomSpi extends SecureRandomSpi {
 
     @Override
     protected void engineSetSeed(byte[] seed) {
-        QRNGRestAPIClient apiClient = new QRNGRestAPIClient();
-        byte[] decodedBytes = apiClient.getRandom(seed.length);
+        System.out.println("EngineSetSeed");
+        try { // TODO - Get rid of try/catch block. I want the exception to be thrown      
+            QRNGRestAPIClient apiClient = new QRNGRestAPIClient(); 
+            
+            // throws exception if fails to retrieve random from API
+            byte[] decodedBytes = apiClient.getRandom(seed.length);
+            if (decodedBytes.length != seed.length){
+                throw new RuntimeException("Error: API returned bytes is a different size then the byte array");
+            }
 
-        // Test for discrepency in lengths
-        if (decodedBytes.length != seed.length){
-            System.out.println("Error: API returned bytes is a different size then the byte array");
-            // TODO - Fill decoded bytes with system random
+            System.arraycopy(decodedBytes, 0, seed, 0, decodedBytes.length);
         }
-
-        System.arraycopy(decodedBytes, 0, seed, 0, decodedBytes.length);
+        catch (Exception e) {}
     }
 
     @Override
     protected void engineNextBytes(byte[] bytes) {
-        QRNGRestAPIClient apiClient = new QRNGRestAPIClient();
-        byte[] decodedBytes = apiClient.getRandom(bytes.length);
+        System.out.println("EngineNextBytes");        
+        try{  // TODO - Get rid of try/catch block. I want the exception to be thrown  
+            QRNGRestAPIClient apiClient = new QRNGRestAPIClient();
+            
+            // throws exception if fails to retrieve random from API
+            byte[] decodedBytes = apiClient.getRandom(bytes.length);
+            if (decodedBytes.length != bytes.length){
+                throw new RuntimeException("Error: API returned bytes is a different size then the byte array");
+            }
 
-        // Test for discrepency in lengths
-        if (decodedBytes.length != bytes.length){
-            System.out.println("Error: API returned bytes is a different size then the byte array");
-            // TODO - Fill decoded bytes with system random
+            // Use a NIST 800-90A DRBG on the output
+            decodedBytes = SHA512Hash(decodedBytes);
+            System.arraycopy(decodedBytes, 0, bytes, 0, decodedBytes.length);
         }
-
-        decodedBytes = SHA512Hash(decodedBytes);
-
-        System.arraycopy(decodedBytes, 0, bytes, 0, decodedBytes.length);
+        catch (Exception e) {}
     }
 
     @Override
     protected byte[] engineGenerateSeed(int numBytes) {
+        System.out.println("EngineGenerateSeed");        
         byte[] returnValue = new byte[numBytes];
         this.engineSetSeed(returnValue);
 

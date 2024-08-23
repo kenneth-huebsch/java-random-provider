@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
           <groupId>com.qrypt</groupId>
-          <artifactId>random-provider-example</artifactId>
+          <artifactId>random-provider-project</artifactId>
           <version>1</version>
     </parent>
 

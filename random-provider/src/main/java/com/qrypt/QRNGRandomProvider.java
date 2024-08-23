@@ -9,5 +9,6 @@ public class QRNGRandomProvider extends Provider {
 
         // Register the SecureRandom implementation
         putService(new Provider.Service(this, "SecureRandom", "QRNGSecureRandomSpi", QRNGSecureRandomSpi.class.getName(), null, null));
+        //put("SecureRandom.SecureRandom", "com.qrypt.QRNGSecureRandomSpi");
     }
 }

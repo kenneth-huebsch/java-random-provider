@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
  
   <groupId>com.qrypt</groupId>
-  <artifactId>random-provider-example</artifactId>
+  <artifactId>random-provider-project</artifactId>
   <version>1</version>
   <packaging>pom</packaging>
   

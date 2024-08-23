@@ -1,5 +1,6 @@
 package com.qrypt;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,7 +17,8 @@ public class QRNGRestAPIClient {
     private static final int MAX_REQUEST_BLOCK_SIZE = 1024;
     private static final int MAX_REQUEST_BLOCK_COUNT = 512;
     
-    private byte[] callApi(int blockSize, int blockCount){
+    private byte[] callApi(int blockSize, int blockCount) throws RuntimeException, IOException, InterruptedException{
+        System.out.println("callApi(blockSize: " + String.valueOf(blockSize) +", blockCount: " + String.valueOf(blockCount));
         byte[] returnValue = new byte[blockSize * blockCount];
         String responseBody = "";
                 
@@ -24,36 +26,31 @@ public class QRNGRestAPIClient {
             return returnValue;
         }
 
-        try {
-            // Create and send an HttpRequest
-            HttpClient client = HttpClient.newHttpClient();
-            String tokenHeader = "Bearer " + TOKEN;
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_URL))
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"block_size\":" + String.valueOf(blockSize) + ",\"block_count\":" + String.valueOf(blockCount) + "}"))
-                    .header("Accept", "application/json")
-                    .header("Authorization", tokenHeader)
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            
-            // If the request isn't successful, return local random
-            int statusCode = response.statusCode();
-            if (statusCode != 200) {
-                //TODO - return random from fileSystem
-            }
-            responseBody = response.body();
+        HttpClient client = HttpClient.newHttpClient();
+        String tokenHeader = "Bearer " + TOKEN;
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_URL))
+                .POST(HttpRequest.BodyPublishers.ofString("{\"block_size\":" + String.valueOf(blockSize) + ",\"block_count\":" + String.valueOf(blockCount) + "}"))
+                .header("Accept", "application/json")
+                .header("Authorization", tokenHeader)
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        
+        // throw an exception so the next random provider takes over
+        int statusCode = response.statusCode();
+        if (statusCode != 200) {
+            throw new RuntimeException("API Error returned code: " + String.valueOf(statusCode));
         }
-        catch (Exception e) {
-            e.printStackTrace();            
-        }
+        responseBody = response.body();
 
          // Parse JSON
         Gson gson = new Gson();
         JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
         JsonArray jsonArray = jsonObject.getAsJsonArray("entropy");
 
+        // throw an exception so the next random provider takes over
         if (jsonArray.size() != blockCount) {
-            System.out.println("Error: Unxpected block count from API");
+            throw new RuntimeException("Error: Unxpected API return value");
         }
 
         // Convert the array of base64 encoded strings into a byte array
@@ -72,10 +69,9 @@ public class QRNGRestAPIClient {
         return returnValue;
     }
 
-    public byte[] getRandom(int totalBytes) {
+    public byte[] getRandom(int totalBytes) throws RuntimeException, IOException, InterruptedException {
         byte[] returnValue = new byte[totalBytes];
 
-        // Calculate initial block_size and block_count
         int blockSize = Math.min(MAX_REQUEST_BLOCK_SIZE, totalBytes);
         int blockCount = Math.min(MAX_REQUEST_BLOCK_COUNT, (int) Math.ceil((double) totalBytes / (double) blockSize));
 
@@ -83,7 +79,6 @@ public class QRNGRestAPIClient {
         int loopCount = 0;
         final int FAIL_STOP = 999;
         while (remainingBytes > 0 && loopCount <= FAIL_STOP ) {
-            // Determine the current block size and block count
             int currentBlockSize = Math.min(blockSize, remainingBytes);
             int currentBlockCount = Math.min(blockCount, (int) Math.ceil((double) remainingBytes / currentBlockSize));
 
@@ -103,8 +98,7 @@ public class QRNGRestAPIClient {
 
             // Prevent the loop from running away
             if (loopCount >= FAIL_STOP) {
-                System.out.println("Error: Loop hit failstop");
-                break;
+                throw new RuntimeException("Error: Loop hit failstop");
             }
             ++loopCount;
         }
