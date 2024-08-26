@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "ProgramaticRegister",
+            "request": "launch",
+            "mainClass": "com.qrypt.ProgramaticRegister",
+            "projectName": "random-provider"
+        },
+        {
+            "type": "java",
             "name": "Main",
             "request": "launch",
             "mainClass": "com.qrypt.Main",

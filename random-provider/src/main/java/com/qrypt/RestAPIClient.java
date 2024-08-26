@@ -11,18 +11,18 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-public class QRNGRestAPIClient {
+public class RestAPIClient {
     private static final String API_URL = "https://api-eus.qrypt.com/api/v1/entropy";
     private static final String TOKEN = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImY0NjEzODdkOTg2ZjQ2OTliOTQzOGI5MTA1MTYwYTliIn0.eyJleHAiOjE3NTUxOTM5NjUsIm5iZiI6MTcyMzY1Nzk2NSwiaXNzIjoiQVVUSCIsImlhdCI6MTcyMzY1Nzk2NSwiZ3JwcyI6WyJQVUIiXSwiYXVkIjpbIlJQUyJdLCJybHMiOlsiUk5EVVNSIl0sImNpZCI6IjBqX2N0cFF3UW9YT0NkLVhaeEZvRiIsImR2YyI6IjNlM2NlZTBlYjVlMDRjNmZiNjM0OWViZDIxNjFmNGE1IiwianRpIjoiMzM5ZWMzNmVkMTlmNGE2YWI3ZWZkMTFiNGI1YzcxMWMiLCJ0eXAiOjN9.Tr_0vh4u0GpnRUFYjsy0Adg_VckMrhssrzfCrS9wmjNZ6PSk8B0xhinO4TCIKVW3xYn7ztssthmWYCj-pA3_NA";
     private static final int MAX_REQUEST_BLOCK_SIZE = 1024;
     private static final int MAX_REQUEST_BLOCK_COUNT = 512;
     
-    private byte[] callApi(int blockSize, int blockCount) throws RuntimeException, IOException, InterruptedException{
+    private byte[] callApi(int blockSize, int blockCount) throws RuntimeException, IOException, InterruptedException {
         System.out.println("callApi(blockSize: " + String.valueOf(blockSize) +", blockCount: " + String.valueOf(blockCount));
         byte[] returnValue = new byte[blockSize * blockCount];
         String responseBody = "";
                 
-        if (blockSize == 0 || blockCount == 0){
+        if (blockSize == 0 || blockCount == 0) {
             return returnValue;
         }
 
@@ -78,7 +78,7 @@ public class QRNGRestAPIClient {
         int remainingBytes = totalBytes;
         int loopCount = 0;
         final int FAIL_STOP = 999;
-        while (remainingBytes > 0 && loopCount <= FAIL_STOP ) {
+        while (remainingBytes > 0 && loopCount <= FAIL_STOP) {
             int currentBlockSize = Math.min(blockSize, remainingBytes);
             int currentBlockCount = Math.min(blockCount, (int) Math.ceil((double) remainingBytes / currentBlockSize));
 
