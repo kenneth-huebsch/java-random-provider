@@ -6,6 +6,16 @@ import java.security.SecureRandomSpi;
 
 
 public class QRNGRestAPI extends SecureRandomSpi {
+    private RestAPIClient apiClient_;
+
+    public QRNGRestAPI() {
+        apiClient_ = new RestAPIClient();
+    }
+
+    // support dependency injection for testing
+    public void setRestAPIClient(RestAPIClient apiClient) {
+        apiClient_ = apiClient;
+    }
 
     private SecureRandom getPRNG() {
         SecureRandom prng = new SecureRandom();
@@ -20,13 +30,11 @@ public class QRNGRestAPI extends SecureRandomSpi {
     }
 
     @Override
-    protected void engineSetSeed(byte[] seed) {
-           
-        RestAPIClient apiClient = new RestAPIClient(); 
+    public void engineSetSeed(byte[] seed) {
         byte[] decodedBytes = new byte[seed.length];
 
         try {
-            decodedBytes = apiClient.getRandom(seed.length);
+            decodedBytes = apiClient_.getRandom(seed.length);
         }
         catch (Exception e) {
             throw new RuntimeException(e.getMessage());
@@ -40,12 +48,12 @@ public class QRNGRestAPI extends SecureRandomSpi {
     }
 
     @Override
-    protected void engineNextBytes(byte[] bytes) {
+    public void engineNextBytes(byte[] bytes) {
         this.getPRNG().nextBytes(bytes);      
     }
 
     @Override
-    protected byte[] engineGenerateSeed(int numBytes) {   
+    public byte[] engineGenerateSeed(int numBytes) {   
         byte[] returnValue = new byte[numBytes];
         this.engineSetSeed(returnValue);
 
