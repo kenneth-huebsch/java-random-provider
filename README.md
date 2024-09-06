@@ -1,7 +1,7 @@
 # Helpful links
 (GetRandom Provide Example - Github)[https://github.com/marschall/getrandom-provider]
 
-# Update Java Security File for when you execute a command via the terminal with "java com.qrypt.Main"
+# Update Java Security File for when you execute a command via the terminal with "java com.qrypt.randomprovider.Main"
 `sudo vim /docker-java-home/conf/security/java.security`
 Add this line: `security.provider.1=com.qrypt.QRNGRandomProvider`
 Bump the rest of the providers down in priority
@@ -17,7 +17,7 @@ mvn compile;
 rm target/classes/com/qrypt/*.jar;
 jar cf target/classes/com/qrypt/QRNGRandomProvider.jar -C /workspaces/java-random-provider/random-provider/target/classes/com/qrypt QRNGRandomProvider.class;
 
-# Install jar file for when you execute a command via the terminal with "java com.qrypt.Main"
+# Install jar file for when you execute a command via the terminal with "java com.qrypt.randomprovider.Main"
 Copy the jar file to "/docker-java-home/lib"
 
 # Install the jar file for when you execute a command via VS Code
@@ -28,7 +28,7 @@ Copy the jar file to this folder: "/home/vscode/.vscode-server/extensions/redhat
 # Run
 From the random-provider folder:
 cd target/classes;
-java com.qrypt.Main;
+java com.qrypt.randomprovider.Main;
 
 ## Hash code in case its useful
     private byte[] SHA512Hash(byte[] bytes){

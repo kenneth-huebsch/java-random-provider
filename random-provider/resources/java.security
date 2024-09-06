@@ -79,7 +79,7 @@
 #security.provider.11=JdkSASL
 #security.provider.12=SunPKCS11
 
-security.provider.1=com.qrypt.QryptProvider
+security.provider.1=com.qrypt.randomprovider.QryptProvider
 security.provider.2=SUN
 security.provider.3=SunRsaSign
 security.provider.4=SunEC

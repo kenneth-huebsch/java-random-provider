@@ -1,4 +1,4 @@
-package com.qrypt;
+package com.qrypt.randomprovider;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.when;
 
@@ -12,12 +12,12 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class QRNGRestAPITests {
+public class QRNGSecureRandomSpiTests {
 
     @Test
     @DisplayName("Test calling the engineSetSeed method")
     public void testEngineSetSeed() {
-        QRNGRestAPI qrngSpi = new QRNGRestAPI();
+        QRNGSecureRandomSpi qrngSpi = new QRNGSecureRandomSpi();
        
         RestAPIClient mockApiClient = Mockito.mock(RestAPIClient.class);
         byte[] expectedAnswer = {2, 2, 2, 2};
@@ -27,7 +27,11 @@ public class QRNGRestAPITests {
         } catch (Exception e) {
             fail("Exception was thrown while mocking getRandom: " + e.getMessage());
         }
-        qrngSpi.setRestAPIClient(mockApiClient);
+        qrngSpi.setRandomStore(
+                new QryptSingleQueueRandomStore(
+                        mockApiClient,null, null
+                )
+        );
 
         byte[] testBytes = new byte[expectedAnswer.length];
         qrngSpi.engineSetSeed(testBytes);
@@ -37,7 +41,7 @@ public class QRNGRestAPITests {
     @Test
     @DisplayName("Test calling the engineSetSeed method")
     public void testEngineGenerateSeed() {
-        QRNGRestAPI qrngSpi = new QRNGRestAPI();
+        QRNGSecureRandomSpi qrngSpi = new QRNGSecureRandomSpi();
        
         RestAPIClient mockApiClient = Mockito.mock(RestAPIClient.class);
         byte[] expectedAnswer = {2, 2, 2, 2};
@@ -47,7 +51,11 @@ public class QRNGRestAPITests {
         } catch (Exception e) {
             fail("Exception was thrown while mocking getRandom: " + e.getMessage());
         }
-        qrngSpi.setRestAPIClient(mockApiClient);
+        qrngSpi.setRandomStore(
+                new QryptSingleQueueRandomStore(
+                        mockApiClient,null, null
+                )
+        );
 
         byte[] testBytes = qrngSpi.engineGenerateSeed(expectedAnswer.length);
         Assertions.assertArrayEquals(expectedAnswer, testBytes);
