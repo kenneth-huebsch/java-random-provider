@@ -62,8 +62,11 @@ public class RestAPIClient {
             //byte[] bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
             try {
                 byte[] bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
+                System.out.println("RestAPIClient: currentBlock="+currentBlockCount+",bytesReturned="+Base64.getEncoder().encodeToString(bytesFromAPICall));
                 int indexToStartCopy = (blockSize * loopCount);
-                System.arraycopy(bytesFromAPICall, 0, returnValue, indexToStartCopy, currentBlockSize);
+                //TODO: figure out why only the first 1024 bytes were copied in the original code,
+                //changing currentBlockSize to returnValue.length-indexToStartCopy
+                System.arraycopy(bytesFromAPICall, 0, returnValue, indexToStartCopy, /*currentBlockSize*/returnValue.length-indexToStartCopy);
 
             } catch (FailStopException e) {
                 System.out.println("API error occurred: " + e.getMessage());
@@ -85,6 +88,7 @@ public class RestAPIClient {
             }
             ++loopCount;
         }
+        System.out.println("RestAPIClient: return value="+Base64.getEncoder().encodeToString(returnValue));
 
         return returnValue;
     }

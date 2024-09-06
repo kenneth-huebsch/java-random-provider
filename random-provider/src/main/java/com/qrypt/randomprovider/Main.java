@@ -8,12 +8,12 @@ import java.util.Base64;
 public class Main {
      
     public static void main(String[] args) {
+        //Runtime.getRuntime().addShutdownHook(new Thread(QryptSingleQueueRandomStore.getInstance()::destroy));
+
         Provider provider = new QryptProvider();
         Security.insertProviderAt(provider, 1);
 
-
         SecureRandom secureRandom = new SecureRandom();
-
 
         System.out.println("Using algorithm: " + secureRandom.getAlgorithm());
         System.out.println("Using provider: " + secureRandom.getProvider().getName());                 
@@ -29,11 +29,14 @@ public class Main {
         System.out.println("*****getSeed: " + encodedString);
 
         // Test Next Bytes
-        for (int i=0; i< 50; i++ ) {
+        for (int i=0; i< 40; i++ ) {
             bytes = new byte[32];
             secureRandom.nextBytes(bytes);
             encodedString = Base64.getEncoder().encodeToString(bytes);
             System.out.println("*****nextBytes["+i+"]: " + encodedString);
         }
+
+        //cleanup
+        QryptSingleQueueRandomStore.getInstance().destroy();
     }
 }

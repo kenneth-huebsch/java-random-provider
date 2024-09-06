@@ -3,12 +3,8 @@ package com.qrypt.randomprovider;
 import java.security.Provider;
 import java.security.Security;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -16,28 +12,61 @@ import sun.security.jca.Providers;
 import sun.security.jca.ProviderList;
 
 public class QryptSingleQueueRandomStore implements RandomStore {
-    private static final int MIN_THRESHOLD = 1000;
+    private static final String DEFAULT_API_URL = "https://api-eus.qrypt.com/api/v1/entropy";
+    private static final String DEFAULT_TOKEN = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImY0NjEzODdkOTg2ZjQ2OTliOTQzOGI5MTA1MTYwYTliIn0.eyJleHAiOjE3NTUxOTM5NjUsIm5iZiI6MTcyMzY1Nzk2NSwiaXNzIjoiQVVUSCIsImlhdCI6MTcyMzY1Nzk2NSwiZ3JwcyI6WyJQVUIiXSwiYXVkIjpbIlJQUyJdLCJybHMiOlsiUk5EVVNSIl0sImNpZCI6IjBqX2N0cFF3UW9YT0NkLVhaeEZvRiIsImR2YyI6IjNlM2NlZTBlYjVlMDRjNmZiNjM0OWViZDIxNjFmNGE1IiwianRpIjoiMzM5ZWMzNmVkMTlmNGE2YWI3ZWZkMTFiNGI1YzcxMWMiLCJ0eXAiOjN9.Tr_0vh4u0GpnRUFYjsy0Adg_VckMrhssrzfCrS9wmjNZ6PSk8B0xhinO4TCIKVW3xYn7ztssthmWYCj-pA3_NA";
+    private static final int DEFAULT_STORE_SIZE = 10000;
+    private static final int DEFAULT_MIN_THRESHOLD = 1000;
+
     private final ConcurrentLinkedQueue<Byte> randomQueue = new ConcurrentLinkedQueue<>();
 
-    //need to isolate store fill-up execution in a separate thread,
-    //so that we could use thread-local Provider
+    /*
+        we need to isolate store fill-up execution to a separate thread,
+        so that we could thread-local Provider list could be utiilized
+     */
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final RestAPIClient apiClient;
     private List<Provider> defaultNonQryptProviders;
     private final ReentrantLock lock = new ReentrantLock();
     private AtomicBoolean isBeingPopulated = new AtomicBoolean(false);
-    private int storeSize = 20000;
-    private int minThreshold = 1000;
+    private int storeSize;
+    private int minThreshold;
 
-    public QryptSingleQueueRandomStore(RestAPIClient apiClient,
-                                       Integer storeSize,
-                                       Integer minThreshold) {
+    @Override
+    public void destroy() {
+        System.out.println("Destroying executeService...");
+        executorService.shutdown();
+    }
+
+    //the store has to absolutely be SINGLETON
+    private static QryptSingleQueueRandomStore instance;
+    public static QryptSingleQueueRandomStore getInstance() {
+        if (instance == null) {
+            //thread safety
+            synchronized (QryptSingleQueueRandomStore.class) {
+                if (instance == null) {
+                    String apiUrl = System.getProperty("qrypt.api.url");
+                    String token = System.getProperty("qrypt.api.token");
+                    if (apiUrl == null)
+                        apiUrl = DEFAULT_API_URL;
+                    if (token == null)
+                        token = DEFAULT_TOKEN;
+                    RestAPIClient apiClient = new RestAPIClient(apiUrl, token);
+                    instance = new QryptSingleQueueRandomStore(apiClient, DEFAULT_STORE_SIZE, DEFAULT_MIN_THRESHOLD);
+                }
+            }
+        }
+        return instance;
+    }
+
+    private QryptSingleQueueRandomStore(RestAPIClient apiClient,
+                                        Integer storeSize,
+                                        Integer minThreshold) {
+        System.out.println("....Initializing Random Store....");
         this.apiClient = apiClient;
         if (storeSize!=null)
             this.storeSize=storeSize;
         if (minThreshold!=null)
             this.minThreshold=minThreshold;
-
     }
 
     private boolean isReady() {
@@ -79,10 +108,10 @@ public class QryptSingleQueueRandomStore implements RandomStore {
     private void checkOrPopulateStore () {
         //prevent other processes from simultaneously populating the store
         if (randomQueue.size() <= this.minThreshold) {
-            System.out.println("checkOrPopulateStore: min threshold met, populating store...");
+            System.out.println("checkOrPopulateStore: min threshold met(queueSize="+randomQueue.size()+"), populating store...");
             if (! isBeingPopulated.getAndSet(true)) {
                 if (randomQueue.size() <= this.minThreshold) {
-
+                    
                     Future<Boolean> executed = executorService.submit(() -> {
                         List<Provider> providers = getDefaultNonQryptProviders();
                         System.out.println("Populating store started... using providers " + providers.toString());
@@ -110,8 +139,8 @@ public class QryptSingleQueueRandomStore implements RandomStore {
 
                     //need to wait and check for executed future completion or failure
                     try {
-                        if (!executed.get())
-                            throw new RuntimeException("Unable to populate store");
+                        if (!executed.get(20, TimeUnit.SECONDS))
+                            throw new RuntimeException("Unable to populate store on time");
                     } catch (Exception e) {
                         throw new FailStopException("Unable to get the status of populating store in time", e);
                     }

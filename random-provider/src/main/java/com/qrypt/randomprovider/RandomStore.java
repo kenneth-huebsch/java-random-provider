@@ -7,4 +7,5 @@ public interface RandomStore {
      */
     void nextBytes(byte[] array);
 
+    void destroy();
 }
