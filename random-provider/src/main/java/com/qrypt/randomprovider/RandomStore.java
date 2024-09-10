@@ -1,11 +1,17 @@
 package com.qrypt.randomprovider;
 
 public interface RandomStore {
-    /**
-     * returns next byte from the random store
-     * @return
-     */
+
     void nextBytes(byte[] array);
 
     void destroy();
+
+    class StorePopulationException extends RuntimeException {
+        public StorePopulationException(String message) {
+            super(message);
+        }
+        public StorePopulationException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }

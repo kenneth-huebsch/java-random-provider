@@ -4,39 +4,42 @@ import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Base64;
+import org.apache.log4j.Logger;
 
 public class Main {
-     
+
+
+    static Logger logger = Logger.getLogger(Main.class);
+
     public static void main(String[] args) {
-        //Runtime.getRuntime().addShutdownHook(new Thread(QryptSingleQueueRandomStore.getInstance()::destroy));
 
         Provider provider = new QryptProvider();
         Security.insertProviderAt(provider, 1);
 
         SecureRandom secureRandom = new SecureRandom();
 
-        System.out.println("Using algorithm: " + secureRandom.getAlgorithm());
-        System.out.println("Using provider: " + secureRandom.getProvider().getName());                 
+        logger.info("Using algorithm: " + secureRandom.getAlgorithm());
+        logger.info("Using provider: " + secureRandom.getProvider().getName());                 
         
         // Test Generate Seed
         byte[] bytes = secureRandom.generateSeed(32);
         String encodedString = Base64.getEncoder().encodeToString(bytes);
-        System.out.println("*****generateSeed: " + encodedString);
+        logger.info("*****generateSeed: " + encodedString);
         
         // Test Get Seed
-        bytes = secureRandom.getSeed(32);
+        bytes = SecureRandom.getSeed(32);
         encodedString = Base64.getEncoder().encodeToString(bytes);
-        System.out.println("*****getSeed: " + encodedString);
+        logger.info("*****getSeed: " + encodedString);
 
         // Test Next Bytes
-        for (int i=0; i< 40; i++ ) {
+        for (int i=0; i< 50; i++ ) {
             bytes = new byte[32];
             secureRandom.nextBytes(bytes);
             encodedString = Base64.getEncoder().encodeToString(bytes);
-            System.out.println("*****nextBytes["+i+"]: " + encodedString);
+            logger.info("*****nextBytes["+i+"]: " + encodedString);
         }
 
         //cleanup
-        QryptSingleQueueRandomStore.getInstance().destroy();
+        QryptSingleQueueRandomStore.getInstance(null).destroy();
     }
 }

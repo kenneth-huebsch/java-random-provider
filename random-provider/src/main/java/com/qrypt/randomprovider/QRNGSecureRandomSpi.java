@@ -4,13 +4,11 @@ import java.security.SecureRandomSpi;
 
 
 public class QRNGSecureRandomSpi extends SecureRandomSpi {
-    //private static final int DEFAULT_QUEUE_SIZE = 500000;
+    //private static final Logger logger = Logger.getLogger(QRNGSecureRandomSpi.class);
     private RandomStore randomStore;
 
     public QRNGSecureRandomSpi() {
-
-
-        randomStore = QryptSingleQueueRandomStore.getInstance();
+        randomStore = QryptSingleQueueRandomStore.getInstance(null);
     }
 
     //useful for testing purposes

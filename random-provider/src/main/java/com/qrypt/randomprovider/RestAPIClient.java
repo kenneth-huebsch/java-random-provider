@@ -6,21 +6,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
+import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-class FailStopException extends RuntimeException {
-    public FailStopException(String message) {
-        super(message);
-    }
-    public FailStopException(String message, Exception e) {
-        super(message,e);
-    }
-}
+
 
 public class RestAPIClient {
+    private static final Logger logger = Logger.getLogger(RestAPIClient.class);
     private final String apiUrl;
     private final String token;
     private static final int MAX_REQUEST_BLOCK_SIZE = 1024;
@@ -32,7 +27,7 @@ public class RestAPIClient {
     public RestAPIClient(final String apiUrl, final String token) {
         this.apiUrl = apiUrl;
         this.token = token;
-        //...initializing it here causes great pain due to uninitialized SSLContexts
+        //...we're forced to opt to lazy-loading due to either race condition or runtime incomplete/partial initialization by the time it's called
         //this.client = HttpClient.newHttpClient();
     }
 
@@ -62,14 +57,13 @@ public class RestAPIClient {
             //byte[] bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
             try {
                 byte[] bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
-                System.out.println("RestAPIClient: currentBlock="+currentBlockCount+",bytesReturned="+Base64.getEncoder().encodeToString(bytesFromAPICall));
+                logger.debug("RestAPIClient: currentBlock="+currentBlockCount+",bytesReturned="+Base64.getEncoder().encodeToString(bytesFromAPICall));
                 int indexToStartCopy = (blockSize * loopCount);
-                //TODO: figure out why only the first 1024 bytes were copied in the original code,
-                //changing currentBlockSize to returnValue.length-indexToStartCopy
+                //TODO: check with Kenny (port from C++ code?) why only the first 1024 bytes were copied in the original code; changing currentBlockSize to returnValue.length-indexToStartCopy
                 System.arraycopy(bytesFromAPICall, 0, returnValue, indexToStartCopy, /*currentBlockSize*/returnValue.length-indexToStartCopy);
 
-            } catch (FailStopException e) {
-                System.out.println("API error occurred: " + e.getMessage());
+            } catch (RestAPIClientException e) {
+                logger.error("API error occurred: ", e);
                 break;
             }
 
@@ -88,15 +82,15 @@ public class RestAPIClient {
             }
             ++loopCount;
         }
-        System.out.println("RestAPIClient: return value="+Base64.getEncoder().encodeToString(returnValue));
+        logger.debug("RestAPIClient: return value="+Base64.getEncoder().encodeToString(returnValue));
 
         return returnValue;
     }
 
-    private byte[] callApi(int blockSize, int blockCount) throws FailStopException {
-        System.out.println("callApi(blockSize: " + String.valueOf(blockSize) +", blockCount: " + String.valueOf(blockCount));
+    private byte[] callApi(int blockSize, int blockCount) throws RestAPIClientException {
+        logger.debug("callApi(blockSize: " + blockSize +", blockCount: " + blockCount);
         byte[] returnValue = new byte[blockSize * blockCount];
-        String responseBody = "";
+        String responseBody;
 
         if (blockSize == 0 || blockCount == 0) {
             return returnValue;
@@ -115,7 +109,7 @@ public class RestAPIClient {
             // throw an exception so the next random provider takes over
             int statusCode = response.statusCode();
             if (statusCode != 200) {
-                throw new FailStopException("API Error, unexpected status code: " + statusCode);
+                throw new RestAPIClientException("API Error, unexpected status code: " + statusCode);
             }
             responseBody = response.body();
 
@@ -126,7 +120,7 @@ public class RestAPIClient {
 
             // throw an exception so the next random provider takes over
             if (jsonArray.size() != blockCount) {
-                throw new FailStopException("Error: Unxpected API return value");
+                throw new RestAPIClientException("Error: Unxpected API return value");
             }
 
             // Convert the array of base64 encoded strings into a byte array
@@ -143,13 +137,22 @@ public class RestAPIClient {
             }
 
         } catch (IOException ioe) {
-            throw new FailStopException("IOException when sending the API request", ioe);
+            throw new RestAPIClientException("IOException when sending the API request", ioe);
         } catch (InterruptedException ie) {
-            throw new FailStopException("InterruptedException when sending the API request", ie);
+            throw new RestAPIClientException("InterruptedException when sending the API request", ie);
         }
 
 
         return returnValue;
+    }
+
+    static class RestAPIClientException extends RuntimeException {
+        public RestAPIClientException(String message) {
+            super(message);
+        }
+        public RestAPIClientException(String message, Exception e) {
+            super(message,e);
+        }
     }
 }
 
