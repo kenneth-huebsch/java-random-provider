@@ -8,7 +8,7 @@ public class QRNGSecureRandomSpi extends SecureRandomSpi {
     private RandomStore randomStore;
 
     public QRNGSecureRandomSpi() {
-        randomStore = QryptSingleQueueRandomStore.getInstance(null);
+        randomStore = QryptSingleQueueRandomStore.getInstance();
     }
 
     //useful for testing purposes

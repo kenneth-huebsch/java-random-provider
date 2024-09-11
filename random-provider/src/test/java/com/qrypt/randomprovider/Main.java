@@ -8,7 +8,6 @@ import org.apache.log4j.Logger;
 
 public class Main {
 
-
     static Logger logger = Logger.getLogger(Main.class);
 
     public static void main(String[] args) {
@@ -40,6 +39,6 @@ public class Main {
         }
 
         //cleanup
-        QryptSingleQueueRandomStore.getInstance(null).destroy();
+        QryptSingleQueueRandomStore.getInstance().destroy();
     }
 }

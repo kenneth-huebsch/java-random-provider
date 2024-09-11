@@ -28,7 +28,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
         so that we could thread-local Provider list could be utiilized
      */
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private final RestAPIClient apiClient;
+    private final APIClient apiClient;
     private List<Provider> defaultNonQryptProviders;
     private final ReentrantLock lock = new ReentrantLock();
     private final AtomicBoolean isBeingPopulated = new AtomicBoolean(false);
@@ -59,10 +59,9 @@ public class QryptSingleQueueRandomStore implements RandomStore {
 
     /**
      * return singleton instance of this class
-     * @param client - optional client, primarily for testing purposes
      * @return singleton instance of this store
      */
-    public static QryptSingleQueueRandomStore getInstance(RestAPIClient client) {
+    public static QryptSingleQueueRandomStore getInstance() {
         if (instance == null) {
             //thread safety
             synchronized (QryptSingleQueueRandomStore.class) {
@@ -72,7 +71,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
                     int storeSize = getSystemProperty("qrypt.store.size",DEFAULT_STORE_SIZE, Integer::valueOf);
                     int storeMinThreshold = getSystemProperty("qrypt.store.min_threshold",DEFAULT_MIN_THRESHOLD,Integer::valueOf);
 
-                    RestAPIClient apiClient = client!=null ? client :new RestAPIClient(apiUrl, token);
+                    APIClient apiClient = new APIClient.DefaultImpl(apiUrl, token);
                     instance = new QryptSingleQueueRandomStore(apiClient, storeSize, storeMinThreshold);
                 }
             }
@@ -80,7 +79,18 @@ public class QryptSingleQueueRandomStore implements RandomStore {
         return instance;
     }
 
-    private QryptSingleQueueRandomStore(RestAPIClient apiClient,
+    /**
+     * non-public accessor for testing purposes
+     * @param client
+     * @param storeSize
+     * @param storeMinThreshold
+     * @return
+     */
+    static QryptSingleQueueRandomStore getInstance(APIClient client, int storeSize, int storeMinThreshold) {
+        return new QryptSingleQueueRandomStore(client, storeSize, storeMinThreshold);
+    }
+
+    private QryptSingleQueueRandomStore(APIClient apiClient,
                                         int storeSize,
                                         int minThreshold) {
         logger.info("Initializing Random Store....");
@@ -154,6 +164,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
                             logger.info("Populating store finished...");
                             return true;
                         } catch (Exception e) {
+                            //TODO: catch the misconfiguration exception that is not recoverable and set this store state in "PERMANENTLY NOT READY" or something
                             logger.log(Level.FATAL, "Error populating store",  e);
                             return false;
                         } finally {

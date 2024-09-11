@@ -14,7 +14,9 @@ import java.util.Random;
 @ExtendWith(MockitoExtension.class)
 public class QRNGSecureRandomSpiTests {
     final byte[] simpleExpectedAnswer = {2, 2, 2, 2};
-    RestAPIClient mockApiClient = Mockito.mock(RestAPIClient.class);
+    APIClient mockApiClient = Mockito.mock(APIClient.class);
+
+    RandomStore actualRandomStore;
     RandomStore simpleMockRandomStore = new RandomStore() {
         @Override
         public void nextBytes(byte[] array) {
@@ -26,6 +28,13 @@ public class QRNGSecureRandomSpiTests {
         public void destroy() {
         }
     };
+
+    public QRNGSecureRandomSpiTests () {
+        //System.setProperty("qrypt.store.size", "1000");
+        //System.setProperty("qrypt.store.min_threshold", "100");
+        actualRandomStore = QryptSingleQueueRandomStore.getInstance(mockApiClient, 1000, 100);
+
+    }
 
     //a private method that returns a byte[] of size 1000 with randomly populated bytes
     private byte[] generateRandomBytes(int size) {
@@ -58,9 +67,7 @@ public class QRNGSecureRandomSpiTests {
 
     @Test
     public void testReadCacheSequentialWithMockRestAPI() {
-        System.setProperty("qrypt.store.size", "1000");
-        System.setProperty("qrypt.store.min_threshold", "100");
-        RandomStore store = QryptSingleQueueRandomStore.getInstance(mockApiClient);
+
         int currentStoreSize = 1000;
         try {
             when(mockApiClient.getRandom(currentStoreSize))
@@ -69,7 +76,7 @@ public class QRNGSecureRandomSpiTests {
             throw new RuntimeException("Failed to generate random bytes", e);
         }
         QRNGSecureRandomSpi qrngSpi = new QRNGSecureRandomSpi();
-        qrngSpi.setRandomStore(store);
+        qrngSpi.setRandomStore(actualRandomStore);
         //byte[] res;
         //32x40 > 1000, so somewhere in the middle we should get another cache replenishment
         for (int i=0; i<40; i++) {
