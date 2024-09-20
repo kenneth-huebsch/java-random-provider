@@ -6,18 +6,19 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
-import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public interface APIClient {
     byte[] getRandom(int totalBytes);
 
     class DefaultImpl implements APIClient {
-        private static final Logger logger = Logger.getLogger(APIClient.DefaultImpl.class);
+        private static final Logger logger = LoggerFactory.getLogger(APIClient.DefaultImpl.class.getName());
         private final String apiUrl;
         private final String token;
         private static final int MAX_REQUEST_BLOCK_SIZE = 1024;
@@ -85,7 +86,7 @@ public interface APIClient {
                 }
                 ++loopCount;
             }
-            logger.debug("RestAPIClient: return value=" + Base64.getEncoder().encodeToString(returnValue));
+            //logger.debug("RestAPIClient: return value=" + Base64.getEncoder().encodeToString(returnValue));
 
             return returnValue;
         }

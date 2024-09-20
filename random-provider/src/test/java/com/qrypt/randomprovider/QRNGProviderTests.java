@@ -1,20 +1,18 @@
 package com.qrypt.randomprovider;
-import java.security.Provider;
 import java.security.SecureRandom;
-import java.security.Security;
 
-import org.apache.log4j.Logger;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 @ExtendWith(MockitoExtension.class)
 public class QRNGProviderTests {
-    static final Logger logger = Logger.getLogger(QRNGProviderTests.class);
+    static final Logger logger = LoggerFactory.getLogger(QRNGProviderTests.class);
 
 
     @Test

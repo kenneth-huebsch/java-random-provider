@@ -14,6 +14,8 @@ import java.util.Random;
 @ExtendWith(MockitoExtension.class)
 public class QRNGSecureRandomSpiTests {
     final byte[] simpleExpectedAnswer = {2, 2, 2, 2};
+    byte[] simpleExpectedAnswerSHA512 = {2, 2, 2, 2};
+
     APIClient mockApiClient = Mockito.mock(APIClient.class);
 
     RandomStore actualRandomStore;
@@ -30,10 +32,8 @@ public class QRNGSecureRandomSpiTests {
     };
 
     public QRNGSecureRandomSpiTests () {
-        //System.setProperty("qrypt.store.size", "1000");
-        //System.setProperty("qrypt.store.min_threshold", "100");
         actualRandomStore = QryptSingleQueueRandomStore.getInstance(mockApiClient, 1000, 100);
-
+        QRNGSecureRandomSpi.sha512digest(simpleExpectedAnswerSHA512);
     }
 
     //a private method that returns a byte[] of size 1000 with randomly populated bytes
@@ -52,7 +52,8 @@ public class QRNGSecureRandomSpiTests {
 
         byte[] testBytes = new byte[simpleExpectedAnswer.length];
         qrngSpi.engineSetSeed(testBytes);
-        Assertions.assertArrayEquals(simpleExpectedAnswer, testBytes);
+
+        Assertions.assertArrayEquals(simpleExpectedAnswerSHA512, testBytes);
     }    
 
     @Test
@@ -62,7 +63,8 @@ public class QRNGSecureRandomSpiTests {
         qrngSpi.setRandomStore(simpleMockRandomStore);
 
         byte[] testBytes = qrngSpi.engineGenerateSeed(simpleExpectedAnswer.length);
-        Assertions.assertArrayEquals(simpleExpectedAnswer, testBytes);
+
+        Assertions.assertArrayEquals(simpleExpectedAnswerSHA512, testBytes);
     }
 
     @Test
