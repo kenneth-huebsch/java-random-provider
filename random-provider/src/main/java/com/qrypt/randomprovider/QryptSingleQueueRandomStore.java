@@ -33,7 +33,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
     private final APIClient apiClient;
     private List<Provider> defaultNonQryptProviders;
     private final ReentrantLock lock = new ReentrantLock();
-    private final AtomicBoolean isBeingPopulated = new AtomicBoolean(false);
+    private final ReentrantLock populateLock = new ReentrantLock();
     private final int storeSize;
     private final int minThreshold;
 
@@ -146,16 +146,18 @@ public class QryptSingleQueueRandomStore implements RandomStore {
     private void checkOrPopulateStore () {
         //prevent other processes from simultaneously populating the store
         if (randomQueue.size() <= this.minThreshold) {
-            logger.info("checkOrPopulateStore: min criteria met(queueSize<="+randomQueue.size()+"), populating store...");
-            if (! isBeingPopulated.getAndSet(true)) {
+            try {
+                populateLock.lock();
+                //if (! isBeingPopulated.getAndSet(true)) {
                 if (randomQueue.size() <= this.minThreshold) {
+                    logger.info("checkOrPopulateStore: min criteria met(queueSize<=" + randomQueue.size() + "), submitting to store populator executorService...");
 
                     Future<Boolean> executed = executorService.submit(() -> {
                         List<Provider> providers = getDefaultNonQryptProviders();
-                        logger.info("Populating store started... using providers " + providers.toString());
+                        logger.info("Populating store started...");// using providers " + providers.toString());
 
                         ProviderList providerList = ProviderList.newList(
-                                        providers.toArray(new Provider[providers.size()])
+                                providers.toArray(new Provider[providers.size()])
                         );
                         Providers.beginThreadProviderList(providerList);
 
@@ -183,7 +185,9 @@ public class QryptSingleQueueRandomStore implements RandomStore {
                         throw new StorePopulationException("Unable to get the status of populating store in time", e);
                     }
                 }
-                isBeingPopulated.set(false);
+                //isBeingPopulated.set(false);
+            } finally {
+                populateLock.unlock();
             }
         }
     }
