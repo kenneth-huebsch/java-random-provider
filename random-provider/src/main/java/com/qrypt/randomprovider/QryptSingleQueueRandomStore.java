@@ -153,8 +153,8 @@ public class QryptSingleQueueRandomStore implements RandomStore {
                     logger.info("checkOrPopulateStore: min criteria met(queueSize<=" + randomQueue.size() + "), submitting to store populator executorService...");
 
                     Future<Boolean> executed = executorService.submit(() -> {
-                        List<Provider> providers = getDefaultNonQryptProviders();
                         logger.info("Populating store started...");// using providers " + providers.toString());
+                        List<Provider> providers = getDefaultNonQryptProviders();
 
                         ProviderList providerList = ProviderList.newList(
                                 providers.toArray(new Provider[providers.size()])
@@ -169,7 +169,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
                             return true;
                         } catch (Exception e) {
                             //TODO: catch the misconfiguration exception that is not recoverable and set this store state in "PERMANENTLY NOT READY" or something
-                            logger.error("Error populating store", e);
+                            logger.error("Populating store failed", e);
                             return false;
                         } finally {
                             //remove this security provider from this thread
@@ -179,7 +179,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
 
                     //need to wait (???) and check for executed future completion or failure
                     try {
-                        if (!executed.get(20, TimeUnit.SECONDS))
+                        if (!executed.get(10, TimeUnit.SECONDS))
                             throw new StorePopulationException("Unable to populate store on time");
                     } catch (InterruptedException | ExecutionException | TimeoutException e) {
                         throw new StorePopulationException("Unable to get the status of populating store in time", e);
@@ -195,7 +195,13 @@ public class QryptSingleQueueRandomStore implements RandomStore {
     @Override
     public void nextBytes(byte[] bytes) {
         //at the beginning of each operation
-        waitForStoreReady();
+        //waitForStoreReady();
+        try {
+            checkOrPopulateStore();
+        } catch (StorePopulationException e) {
+            //TODO: come up with downgrade strategy here: an atomic counter and switch to SUN impl after 5 failed attempts
+            logger.error("nextBytes::FAILED store population", e);
+        }
 
         logger.debug("nextBytes: fetching " + bytes.length + " bytes from the store");
         for (int i = 0; i < bytes.length; i++) {

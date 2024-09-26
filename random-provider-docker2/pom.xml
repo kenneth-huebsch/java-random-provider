@@ -81,7 +81,7 @@
                         </goals>
                         <configuration>
                             <repository>qrypt/ejbca-ce</repository>
-                            <tag>${project.version}-large</tag>
+                            <tag>${project.version}</tag>
                             <dockerfile>target/Dockerfile</dockerfile> <!-- Specify the path to the Dockerfile -->
                             <contextDirectory>target</contextDirectory>
                         </configuration>

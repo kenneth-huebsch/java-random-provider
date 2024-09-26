@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Base64;
 
 import com.google.gson.Gson;
@@ -36,8 +37,16 @@ public interface APIClient {
 
         private HttpClient getHttpClient() {
             if (client == null)
-                client = HttpClient.newHttpClient();
+                client = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(10))
+                        .build();
             return client;
+        }
+
+        private void resetHttpClient() {
+            client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
         }
 
         public byte[] getRandom(int totalBytes) {
@@ -58,18 +67,29 @@ public interface APIClient {
                 int currentBlockCount = Math.min(blockCount, (int) Math.ceil((double) remainingBytes / currentBlockSize));
 
                 // Call the API and copy result into combined array
+                byte[] bytesFromAPICall=null;
                 try {
-                    byte[] bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
-                    logger.debug("RestAPIClient: currentBlock=" + currentBlockCount + ",bytesReturned=" + Base64.getEncoder().encodeToString(bytesFromAPICall));
-                    int indexToStartCopy = (blockSize * loopCount);
-                    //TODO: check with Kenny (port from C++ code?) why only the first 1024 bytes were copied in the original code; changing currentBlockSize to returnValue.length-indexToStartCopy
-                    System.arraycopy(bytesFromAPICall, 0, returnValue, indexToStartCopy, /*currentBlockSize*/returnValue.length - indexToStartCopy);
+                    logger.info("Calling RestAPIClient started: currentBlock=" + currentBlockCount );
+                    bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
 
                 } catch (RestAPIClientException e) {
-                    logger.error("API error occurred: ", e);
-                    //TODO: throw unrecoverable exception if we sense misconfig
-                    break;
+                    logger.error("API call error occurred: ", e);
+                    this.resetHttpClient();
+                    //retry the call
+                    try {
+                        logger.info("Calling RestAPIClient started: currentBlock=" + currentBlockCount );
+                        bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
+                    } catch (RestAPIClientException e1) {
+                        logger.error("API retry call error occurred: ", e1);
+                        throw e1;
+                    }
+
                 }
+                logger.info("Calling RestAPIClient finished");//currentBlock=" + currentBlockCount + ",bytesReturned=" + Base64.getEncoder().encodeToString(bytesFromAPICall));
+                int indexToStartCopy = (blockSize * loopCount);
+                //TODO: check with Kenny (port from C++ code?) why only the first 1024 bytes were copied in the original code; changing currentBlockSize to returnValue.length-indexToStartCopy
+                System.arraycopy(bytesFromAPICall, 0, returnValue, indexToStartCopy, /*currentBlockSize*/returnValue.length - indexToStartCopy);
+
 
                 // Update remaining request
                 remainingBytes -= currentBlockSize * currentBlockCount;
@@ -103,6 +123,7 @@ public interface APIClient {
             String tokenHeader = "Bearer " + this.token;
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(this.apiUrl))
+                    .timeout(Duration.ofSeconds(10))
                     .POST(HttpRequest.BodyPublishers.ofString("{\"block_size\":" + blockSize + ",\"block_count\":" + blockCount + "}"))
                     .header("Accept", "application/json")
                     .header("Authorization", tokenHeader)
@@ -144,6 +165,8 @@ public interface APIClient {
                 throw new RestAPIClientException("IOException when sending the API request", ioe);
             } catch (InterruptedException ie) {
                 throw new RestAPIClientException("InterruptedException when sending the API request", ie);
+            } catch (Exception e) {
+                throw new RestAPIClientException("Exception when sending the API request", e);
             }
 
 
