@@ -1,0 +1,21 @@
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://jakarta.ee/xml/ns/jakartaee
+                             http://jakarta.ee/xml/ns/jakartaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <listener>
+        <listener-class>com.qrypt.randomprovider.servlet.ProviderPreloadListener</listener-class>
+    </listener>
+
+<!--    <servlet>-->
+<!--        <servlet-name>SecureRandomServlet</servlet-name>-->
+<!--        <servlet-class>com.qrypt.randomprovider.servlet.SecureRandomServlet</servlet-class>-->
+<!--    </servlet>-->
+
+<!--    <servlet-mapping>-->
+<!--        <servlet-name>SecureRandomServlet</servlet-name>-->
+<!--        <url-pattern>/securerandom</url-pattern>-->
+<!--    </servlet-mapping>-->
+
+</web-app>
