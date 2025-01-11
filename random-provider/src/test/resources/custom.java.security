@@ -1,7 +1,7 @@
 #
 # List of providers and their preference orders (see above):
 #
-security.provider.1=com.qrypt.randomprovider.QryptProvider
+security.provider.1=com.qrypt.randomprovider.QryptSecureRandomProvider
 security.provider.2=SUN
 security.provider.3=SunRsaSign
 security.provider.4=SunEC

@@ -5,7 +5,6 @@ import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
@@ -14,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.security.jca.Providers;
 import sun.security.jca.ProviderList;
+import java.io.ByteArrayOutputStream;
 
 
 public class QryptSingleQueueRandomStore implements RandomStore {
@@ -37,11 +37,18 @@ public class QryptSingleQueueRandomStore implements RandomStore {
     private final int storeSize;
     private final int minThreshold;
 
+    /*
+     * execute population scheduled
+     */
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
     @Override
     public void destroy() {
         logger.info("....Destroying qrypt executeService...");
         executorService.shutdown();
+        shutdown();
     }
+
 
     //the store has to absolutely be SINGLETON
     private static QryptSingleQueueRandomStore instance;
@@ -95,20 +102,14 @@ public class QryptSingleQueueRandomStore implements RandomStore {
     private QryptSingleQueueRandomStore(APIClient apiClient,
                                         int storeSize,
                                         int minThreshold) {
-        logger.info("Initializing Random Store....");
+        logger.info("Initializing and scheduling random Store....");
         this.apiClient = apiClient;
         this.storeSize=storeSize;
         this.minThreshold=minThreshold;
-    }
 
-    private boolean isReady() {
-        if (randomQueue.size() < minThreshold) {
-            checkOrPopulateStore();
-            return false;
-        }
-        return true;
+        startScheduledPopulation();
     }
-
+    @Deprecated
     private List<Provider> getDefaultNonQryptProviders() {
         //using re-entrant lock to make sure we populate defaultNonQryptProviders only once
         if (defaultNonQryptProviders != null) {
@@ -127,7 +128,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
                 throw new IllegalStateException("Unable to fetch list of security providers: need at least one more other than Qrypt");
 
             for (Provider provider : providers) {
-                if (!(provider instanceof QryptProvider)) {
+                if (!(provider instanceof QryptNaiveProvider)) {
                     defaultNonQryptProviders.add(provider);
                 }
             }
@@ -143,6 +144,7 @@ public class QryptSingleQueueRandomStore implements RandomStore {
         return defaultNonQryptProviders;
     }
 
+    @Deprecated
     private void checkOrPopulateStore () {
         //prevent other processes from simultaneously populating the store
         if (randomQueue.size() <= this.minThreshold) {
@@ -192,6 +194,48 @@ public class QryptSingleQueueRandomStore implements RandomStore {
         }
     }
 
+    public void startScheduledPopulation() {
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                checkOrPopulateStoreScheduled();
+            } catch (Exception e) {
+                logger.error("Scheduled task encountered an exception. It will continue to run on the next iteration.", e);
+            }
+        }, 1, 1, TimeUnit.MINUTES); //Initial delay: 1 min, Period: 1 minute
+    }
+
+    private void checkOrPopulateStoreScheduled() {
+        if (randomQueue.size() <= this.minThreshold) {
+            //no locking here since it's only accessed from single-threaded scheduler
+            logger.info("checkOrPopulateStoreScheduled: min criteria met (queueSize <= " + randomQueue.size() +
+                    "), starting population process...");
+
+            // Call the populate method directly as we are already in a custom scheduler thread
+            try {
+                for (byte b : apiClient.getRandom(storeSize)) {
+                    randomQueue.offer(b);
+                }
+                logger.info("checkOrPopulateStoreScheduled: population process completed.");
+            } catch (Exception e) {
+                // Handle failures gracefully
+                logger.error("checkOrPopulateStoreScheduled: population process failed", e);
+            }
+
+        }
+    }
+
+    private void shutdown() {
+        scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(1, TimeUnit.MINUTES)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @Deprecated
     @Override
     public void nextBytes(byte[] bytes) {
         //at the beginning of each operation
@@ -214,17 +258,27 @@ public class QryptSingleQueueRandomStore implements RandomStore {
         }
     }
 
-    private void waitForStoreReady() {
-        for (int count = 0; !isReady() && count< 20; count++) {
-            logAndSleep();
+    @Override
+    public byte[] getBytes(int numBytes) {
+        //so far the best dynamic structure to later convert to appropriate size array,
+        //note that the result array could be <= numBytes
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        for (int i = 0; i < numBytes; i++) {
+            if (!pollAndWriteNextByte(baos)) {
+                break;
+            }
         }
+        return baos.toByteArray();
     }
 
-    private void logAndSleep() {
-        try {
-            logger.info("Store is not ready, still populating, sleeping....");
-            Thread.sleep(1000);
-        } catch (InterruptedException ignored) {}
+    private boolean pollAndWriteNextByte(ByteArrayOutputStream baos) {
+        Byte nextByte = randomQueue.poll();
+        if (nextByte == null) {
+            return false;
+        }
+        baos.write(nextByte);
+        return true;
     }
+
 
 }

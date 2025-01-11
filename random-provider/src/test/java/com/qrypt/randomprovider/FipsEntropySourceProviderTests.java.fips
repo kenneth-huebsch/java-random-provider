@@ -1,0 +1,47 @@
+//package com.qrypt.randomprovider;
+//
+//import com.qrypt.qrandom.bcprov.ChainedEntropySourceProvider;
+//import org.bouncycastle.crypto.EntropySourceProvider;
+//import org.junit.jupiter.api.extension.ExtendWith;
+//import org.mockito.junit.jupiter.MockitoExtension;
+//import org.junit.jupiter.api.Test;
+//
+//import org.bouncycastle.crypto.fips.FipsDRBG;
+//import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
+//import org.bouncycastle.crypto.CryptoServicesRegistrar;
+//import org.bouncycastle.util.Strings;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+//
+//import java.security.NoSuchAlgorithmException;
+//import java.security.SecureRandom;
+//import java.security.Security;
+//
+//@ExtendWith(MockitoExtension.class)
+//public class FipsEntropySourceProviderTests {
+//
+//    static final Logger logger = LoggerFactory.getLogger(FipsEntropySourceProviderTests.class);
+//
+//    @Test
+//    public void test1() throws NoSuchAlgorithmException {
+//        Security.insertProviderAt(new BouncyCastleFipsProvider(), 1);
+//
+//        EntropySourceProvider entSource = new QryptEntropySourceProvider();
+//
+//        FipsDRBG.Builder drgbBldr = FipsDRBG.SHA512_HMAC.fromEntropySource(entSource)
+//                .setSecurityStrength(256)
+//                .setEntropyBitsRequired(256);
+//
+//        CryptoServicesRegistrar.setSecureRandom(drgbBldr.build(Strings.toByteArray("number only used once"), true));
+//
+//        String strongAlgs = "DEFAULT:BCFIPS, NativePRNGBlocking:SUN";
+//        Security.setProperty("securerandom.strongAlgorithms", strongAlgs);
+//
+//        byte[] arr=new byte[256];
+//        logger.info("calling nextBytes from SecureRandom.getInstanceStrong");
+//        SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
+//       // Assertions.assertTrue(secureRandom instanceof FipsSecureRandom);
+//        secureRandom.nextBytes(arr);
+//
+//    }
+//}

@@ -1,6 +1,4 @@
 package com.qrypt.randomprovider;
-import static org.mockito.Mockito.*;
-
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -11,8 +9,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Random;
 
+import static org.mockito.Mockito.*;
+
 @ExtendWith(MockitoExtension.class)
-public class QRNGSecureRandomSpiTests {
+public class QryptSecureRandomSpiTests {
     final byte[] simpleExpectedAnswer = {2, 2, 2, 2};
     byte[] simpleExpectedAnswerSHA512 = {2, 2, 2, 2};
 
@@ -27,13 +27,19 @@ public class QRNGSecureRandomSpiTests {
         }
 
         @Override
+        public byte[] getBytes(int numBytes) {
+            return new byte[0];
+        }
+
+
+        @Override
         public void destroy() {
         }
     };
 
-    public QRNGSecureRandomSpiTests () {
+    public QryptSecureRandomSpiTests() {
         actualRandomStore = QryptSingleQueueRandomStore.getInstance(mockApiClient, 1000, 100);
-        QRNGSecureRandomSpi.sha512digest(simpleExpectedAnswerSHA512);
+        QRNGNaiveSecureRandomSpi.sha512digest(simpleExpectedAnswerSHA512);
     }
 
     //a private method that returns a byte[] of size 1000 with randomly populated bytes
@@ -46,7 +52,7 @@ public class QRNGSecureRandomSpiTests {
     @Test
     @DisplayName("Test calling the engineSetSeed method")
     public void testSimpleEngineSetSeed() {
-        QRNGSecureRandomSpi qrngSpi = new QRNGSecureRandomSpi();
+        QRNGNaiveSecureRandomSpi qrngSpi = new QRNGNaiveSecureRandomSpi();
 
         qrngSpi.setRandomStore(simpleMockRandomStore);
 
@@ -59,7 +65,7 @@ public class QRNGSecureRandomSpiTests {
     @Test
     @DisplayName("Test calling the engineSetSeed method")
     public void testSimpleEngineGenerateSeed() {
-        QRNGSecureRandomSpi qrngSpi = new QRNGSecureRandomSpi();
+        QRNGNaiveSecureRandomSpi qrngSpi = new QRNGNaiveSecureRandomSpi();
         qrngSpi.setRandomStore(simpleMockRandomStore);
 
         byte[] testBytes = qrngSpi.engineGenerateSeed(simpleExpectedAnswer.length);
@@ -77,7 +83,7 @@ public class QRNGSecureRandomSpiTests {
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate random bytes", e);
         }
-        QRNGSecureRandomSpi qrngSpi = new QRNGSecureRandomSpi();
+        QRNGNaiveSecureRandomSpi qrngSpi = new QRNGNaiveSecureRandomSpi();
         qrngSpi.setRandomStore(actualRandomStore);
         //byte[] res;
         //32x40 > 1000, so somewhere in the middle we should get another cache replenishment

@@ -1,13 +1,12 @@
 package com.qrypt.randomprovider.servlet;
 
-import com.qrypt.randomprovider.QryptProvider;
+import com.qrypt.randomprovider.QryptNaiveProvider;
 import com.qrypt.randomprovider.QryptSingleQueueRandomStore;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
 import java.security.Provider;
-import java.security.SecureRandom;
 import java.security.Security;
 
 @WebListener
@@ -19,12 +18,12 @@ public class ProviderPreloadListener implements ServletContextListener {
     public void contextInitialized(ServletContextEvent sce) {
         try {
             // Force loading of your provider class
-            Class.forName("com.qrypt.randomprovider.QryptProvider");
+            Class.forName("com.qrypt.randomprovider.QryptNaiveProvider");
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("Failed to load provider class", e);
         }
 
-        Provider p = new QryptProvider();
+        Provider p = new QryptNaiveProvider();
         Security.insertProviderAt(p, 1);
 
         //let's add QryptProvider's QRNGRestAPI to the list of strong algorithms

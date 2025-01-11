@@ -8,12 +8,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandomSpi;
 
 
-public class QRNGSecureRandomSpi extends SecureRandomSpi {
+public class QRNGNaiveSecureRandomSpi extends SecureRandomSpi {
     private static final Logger logger = LoggerFactory
-            .getLogger(QRNGSecureRandomSpi.class);
+            .getLogger(QRNGNaiveSecureRandomSpi.class);
     private RandomStore randomStore;
 
-    public QRNGSecureRandomSpi() {
+    public QRNGNaiveSecureRandomSpi() {
         randomStore = QryptSingleQueueRandomStore.getInstance();
     }
 
