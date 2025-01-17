@@ -78,8 +78,9 @@ public class ChainedEntropySourceProvider implements EntropySourceProvider {
 
                 @Override
                 public byte[] getEntropy() {
-                    logger.info("getting entropy from RandomStoreSourceProvider: " + numBytes + " bytes");
-                    return store.getBytes(numBytes);
+                    byte[] res= store.getBytes(numBytes);
+                    logger.info("got entropy from the RandomStoreSourceProvider: " + res.length + " bytes");
+                    return res;
                 }
 
                 @Override
@@ -90,8 +91,11 @@ public class ChainedEntropySourceProvider implements EntropySourceProvider {
         }
     }
 
+    /**
+     * Fallback entropy source provider
+     */
     private static class ThreadedEntropySourceProvider implements EntropySourceProvider {
-
+        //using threaded seed generator from bcprov
         private final ThreadedSeedGenerator seedGenerator;
 
         ThreadedEntropySourceProvider() {
@@ -110,8 +114,9 @@ public class ChainedEntropySourceProvider implements EntropySourceProvider {
 
                 @Override
                 public byte[] getEntropy() {
-                    logger.info("getting Entropy from ThreadedEntropySourceProvider:" + numBytes + " bytes");
-                    return seedGenerator.generateSeed(numBytes, true);
+                    byte[] res= seedGenerator.generateSeed(numBytes, true);
+                    logger.info("got entropy from the fallback ThreadedEntropySourceProvider:" + res.length + " bytes");
+                    return res;
                 }
 
                 @Override

@@ -1,5 +1,6 @@
 package com.qrypt.randomprovider;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -7,40 +8,75 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Base64;
-
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public interface APIClient {
     byte[] getRandom(int totalBytes);
 
     class DefaultImpl implements APIClient {
         private static final Logger logger = LoggerFactory.getLogger(APIClient.DefaultImpl.class.getName());
-        private final String apiUrl;
-        private final String token;
         private static final int MAX_REQUEST_BLOCK_SIZE = 1024;
         private static final int MAX_REQUEST_BLOCK_COUNT = 512;
+        private static final int MAX_RETRY_COUNT = 3; // Retry limit
 
-        // HttpClient is now a class member to reuse the connection pool
+        private final String apiUrl;
+        private final String token;
         private HttpClient client;
 
         public DefaultImpl(final String apiUrl, final String token) {
             this.apiUrl = apiUrl;
             this.token = token;
-            //...we're forced to opt to lazy-loading due to either race condition or runtime incomplete/partial initialization by the time it's called
-            //this.client = HttpClient.newHttpClient();
         }
 
         private HttpClient getHttpClient() {
-            if (client == null)
+            if (client == null) {
                 client = HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(10))
                         .build();
+            }
             return client;
+        }
+
+        @Override
+        public byte[] getRandom(int totalBytes) {
+            if (totalBytes <= 0) {
+                throw new IllegalArgumentException("Total bytes must be greater than 0");
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(); // To collect and aggregate
+            int bytesRemaining = totalBytes;
+
+            while (bytesRemaining > 0) {
+                int blockSize = Math.min(MAX_REQUEST_BLOCK_SIZE, bytesRemaining);
+                int blockCount = Math.min(MAX_REQUEST_BLOCK_COUNT, (int) Math.ceil((double) bytesRemaining / blockSize));
+
+                byte[] data = fetchBytesWithRetry(blockSize, blockCount);
+                outputStream.writeBytes(data); // Collect the output
+
+                bytesRemaining -= data.length;
+            }
+
+            logger.info("Generated total of {} bytes", outputStream.size());
+            return outputStream.toByteArray();
+        }
+
+        private byte[] fetchBytesWithRetry(int blockSize, int blockCount) {
+            int retryCount = 0;
+            while (retryCount < MAX_RETRY_COUNT) {
+                try {
+                    logger.info("Fetching random bytes: blockSize={}, blockCount={}, retry={}", blockSize, blockCount, retryCount);
+                    return callApi(blockSize, blockCount);
+                } catch (RestAPIClientException e) {
+                    logger.error("API call failed (attempt {}): {}", retryCount + 1, e.getMessage());
+                    retryCount++;
+                    resetHttpClient(); // Reset and retry
+                }
+            }
+            throw new RestAPIClientException("Failed to fetch random bytes after " + MAX_RETRY_COUNT + " attempts");
         }
 
         private void resetHttpClient() {
@@ -49,131 +85,57 @@ public interface APIClient {
                     .build();
         }
 
-        public byte[] getRandom(int totalBytes) {
-            if (totalBytes < 0) {
-                throw new IllegalArgumentException("Total bytes cannot be negative");
-            }
-
-            byte[] returnValue = new byte[totalBytes];
-
-            int blockSize = Math.min(MAX_REQUEST_BLOCK_SIZE, totalBytes);
-            int blockCount = Math.min(MAX_REQUEST_BLOCK_COUNT, (int) Math.ceil((double) totalBytes / (double) blockSize));
-
-            int remainingBytes = totalBytes;
-            int loopCount = 0;
-            final int FAIL_STOP = 999;
-            while (remainingBytes > 0 && loopCount <= FAIL_STOP) {
-                int currentBlockSize = Math.min(blockSize, remainingBytes);
-                int currentBlockCount = Math.min(blockCount, (int) Math.ceil((double) remainingBytes / currentBlockSize));
-
-                // Call the API and copy result into combined array
-                byte[] bytesFromAPICall=null;
-                try {
-                    logger.info("Calling RestAPIClient started: currentBlock=" + currentBlockCount );
-                    bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
-
-                } catch (RestAPIClientException e) {
-                    logger.error("API call error occurred: ", e);
-                    this.resetHttpClient();
-                    //retry the call
-                    try {
-                        logger.info("Calling RestAPIClient started: currentBlock=" + currentBlockCount );
-                        bytesFromAPICall = this.callApi(currentBlockSize, currentBlockCount);
-                    } catch (RestAPIClientException e1) {
-                        logger.error("API retry call error occurred: ", e1);
-                        throw e1;
-                    }
-
-                }
-                logger.info("Calling RestAPIClient finished");//currentBlock=" + currentBlockCount + ",bytesReturned=" + Base64.getEncoder().encodeToString(bytesFromAPICall));
-                int indexToStartCopy = (blockSize * loopCount);
-                //TODO: check with Kenny (port from C++ code?) why only the first 1024 bytes were copied in the original code; changing currentBlockSize to returnValue.length-indexToStartCopy
-                System.arraycopy(bytesFromAPICall, 0, returnValue, indexToStartCopy, /*currentBlockSize*/returnValue.length - indexToStartCopy);
-
-
-                // Update remaining request
-                remainingBytes -= currentBlockSize * currentBlockCount;
-
-                // If there's more to fetch, recalculate block_size and block_count
-                if (remainingBytes > 0) {
-                    blockSize = Math.min(MAX_REQUEST_BLOCK_SIZE, remainingBytes);
-                    blockCount = Math.min(MAX_REQUEST_BLOCK_COUNT, (int) Math.ceil((double) remainingBytes / blockSize));
-                }
-
-                // Prevent the loop from running away
-                if (loopCount >= FAIL_STOP) {
-                    throw new RuntimeException("Error: Loop hit failstop");
-                }
-                ++loopCount;
-            }
-            //logger.debug("RestAPIClient: return value=" + Base64.getEncoder().encodeToString(returnValue));
-
-            return returnValue;
-        }
-
         private byte[] callApi(int blockSize, int blockCount) throws RestAPIClientException {
-            logger.debug("callApi(blockSize: " + blockSize + ", blockCount: " + blockCount);
+            if (blockSize <= 0 || blockCount <= 0) {
+                return new byte[0];
+            }
+
             byte[] returnValue = new byte[blockSize * blockCount];
-            String responseBody;
-
-            if (blockSize == 0 || blockCount == 0) {
-                return returnValue;
-            }
-
-            String tokenHeader = "Bearer " + this.token;
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(this.apiUrl))
-                    .timeout(Duration.ofSeconds(10))
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"block_size\":" + blockSize + ",\"block_count\":" + blockCount + "}"))
-                    .header("Accept", "application/json")
-                    .header("Authorization", tokenHeader)
-                    .build();
-
             try {
+                String tokenHeader = "Bearer " + this.token;
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(this.apiUrl))
+                        .timeout(Duration.ofSeconds(10))
+                        .POST(HttpRequest.BodyPublishers.ofString(
+                                String.format("{\"block_size\":%d,\"block_count\":%d}", blockSize, blockCount)))
+                        .header("Accept", "application/json")
+                        .header("Authorization", tokenHeader)
+                        .build();
+
                 HttpResponse<String> response = getHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-                // throw an exception so the next random provider takes over
-                int statusCode = response.statusCode();
-                if (statusCode != 200) {
-                    throw new RestAPIClientException("API Error, unexpected status code: " + statusCode);
-                }
-                responseBody = response.body();
-
-                //
-                Gson gson = new Gson();
-                JsonObject jsonObject = gson.fromJson(responseBody, JsonObject.class);
-                JsonArray jsonArray = jsonObject.getAsJsonArray("entropy");
-
-                // throw an exception so the next random provider takes over
-                if (jsonArray.size() != blockCount) {
-                    throw new RestAPIClientException("Error: Unxpected API return value");
+                if (response.statusCode() != 200) {
+                    throw new RestAPIClientException("Unexpected status code: " + response.statusCode());
                 }
 
-                // Convert the array of base64 encoded strings into a byte array
-                byte[][] byteArrayParts = new byte[blockCount][];
-                for (int i = 0; i < blockCount; i++) {
-                    String base64String = jsonArray.get(i).getAsString();
-                    byteArrayParts[i] = Base64.getDecoder().decode(base64String);
-                }
+                byte[] data = extractBytesFromResponse(response.body(), blockCount);
+                logger.info("Successfully fetched {} bytes from API", data.length);
 
-                int currentPosition = 0;
-                for (byte[] part : byteArrayParts) {
-                    System.arraycopy(part, 0, returnValue, currentPosition, part.length);
-                    currentPosition += part.length;
-                }
+                return data;
 
-            } catch (IOException ioe) {
-                throw new RestAPIClientException("IOException when sending the API request", ioe);
-            } catch (InterruptedException ie) {
-                throw new RestAPIClientException("InterruptedException when sending the API request", ie);
-            } catch (Exception e) {
-                throw new RestAPIClientException("Exception when sending the API request", e);
+            } catch (IOException | InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RestAPIClientException("Error during API call", e);
             }
-
-
-            return returnValue;
         }
 
+        private byte[] extractBytesFromResponse(String responseBody, int expectedBlockCount) {
+            Gson gson = new Gson();
+            JsonObject responseObject = gson.fromJson(responseBody, JsonObject.class);
+            JsonArray jsonArray = responseObject.getAsJsonArray("entropy");
 
+            if (jsonArray.size() != expectedBlockCount) {
+                throw new RestAPIClientException("Mismatch in expected block count: " + expectedBlockCount);
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            for (int i = 0; i < jsonArray.size(); i++) {
+                String base64Entry = jsonArray.get(i).getAsString();
+                byte[] decodedBytes = Base64.getDecoder().decode(base64Entry);
+                outputStream.writeBytes(decodedBytes);
+            }
+
+            return outputStream.toByteArray();
+        }
     }
 
     class RestAPIClientException extends RuntimeException {
@@ -181,10 +143,8 @@ public interface APIClient {
             super(message);
         }
 
-        public RestAPIClientException(String message, Exception e) {
-            super(message, e);
+        public RestAPIClientException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }
-
-

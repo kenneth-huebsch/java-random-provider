@@ -1,5 +1,5 @@
 # Use the keyfactor/ejbca-ce image as the base
-FROM keyfactor/ejbca-ce:latest
+FROM keyfactor/ejbca-ce:8.3.2
 
 # Define a variable for the base modules path
 ARG MODULES_PATH=/opt/keyfactor/appserver/modules/system/layers/base
@@ -10,7 +10,11 @@ RUN mkdir -p ${MODULES_PATH}/com/qrypt/randomprovider/main \
 
 # Copy module.xml and random-provider jar to the randomprovider module directory
 COPY random-provider-1.0-SNAPSHOT.jar ${MODULES_PATH}/com/qrypt/randomprovider/main/
-COPY module.xml ${MODULES_PATH}/com/qrypt/randomprovider/main/
+COPY module-randomprovider.xml ${MODULES_PATH}/com/qrypt/randomprovider/main/module.xml
+
+#COPY bcprov stuff
+COPY qrandom-bcprov-1.0-SNAPSHOT.jar ${MODULES_PATH}/org/bouncycastle/bcprov/main/
+COPY module-bcprov.xml ${MODULES_PATH}/org/bouncycastle/bcprov/main/module.xml
 
 # Copy missing google gson module dependency
 COPY gson-2.8.9.jar ${MODULES_PATH}/com/google/code/gson/main

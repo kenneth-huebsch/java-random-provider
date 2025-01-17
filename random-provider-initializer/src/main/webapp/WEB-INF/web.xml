@@ -5,7 +5,7 @@
          version="4.0">
 
     <listener>
-        <listener-class>com.qrypt.randomprovider.servlet.ProviderPreloadListener</listener-class>
+        <listener-class>com.qrypt.randomprovider.servlet.BCProviderPreloadListener</listener-class>
     </listener>
 
 <!--    <servlet>-->

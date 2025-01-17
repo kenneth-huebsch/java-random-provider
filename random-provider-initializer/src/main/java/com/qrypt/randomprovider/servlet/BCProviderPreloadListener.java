@@ -1,6 +1,5 @@
 package com.qrypt.randomprovider.servlet;
 
-import com.qrypt.randomprovider.QryptNaiveProvider;
 import com.qrypt.randomprovider.QryptSingleQueueRandomStore;
 
 import javax.servlet.ServletContextEvent;
@@ -9,24 +8,33 @@ import javax.servlet.annotation.WebListener;
 import java.security.Provider;
 import java.security.Security;
 
-//
-public class ProviderPreloadListener implements ServletContextListener {
+@WebListener
+public class BCProviderPreloadListener implements ServletContextListener {
 
     private static final String STRONG_ALGS = "securerandom.strongAlgorithms";
-    private static final String QRYPT_ALG = "QRNGRestAPI:QryptProvider";
+    private static final String QRYPT_ALG = "DEFAULT:BC";
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         try {
-            // Force loading of your provider class
-            Class.forName("com.qrypt.randomprovider.QryptNaiveProvider");
+            // Force loading of your jce provider class
+            Class.forName("org.bouncycastle.jce.provider.BouncyCastleProvider");
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("Failed to load provider class", e);
         }
 
-        Provider p = new QryptNaiveProvider();
+        try {
+            // Force loading of your entropysource provider class
+            Class.forName("com.qrypt.qrandom.bcprov.ChainedEntropySourceProvider");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Failed to load provider class", e);
+        }
+
+        System.setProperty("org.bouncycastle.drbg.entropysource",
+                "com.qrypt.qrandom.bcprov.ChainedEntropySourceProvider");
+        Provider p = new org.bouncycastle.jce.provider.BouncyCastleProvider();
         Security.insertProviderAt(p, 1);
 
-        //let's add QryptProvider's QRNGRestAPI to the list of strong algorithms
+        //Add BouncyCastleProvider to the list of strong algorithms
         String strongAlgs=Security.getProperty(STRONG_ALGS);
         if (strongAlgs==null)
             strongAlgs=QRYPT_ALG;
@@ -42,4 +50,3 @@ public class ProviderPreloadListener implements ServletContextListener {
         QryptSingleQueueRandomStore.getInstance().destroy();
     }
 }
-
